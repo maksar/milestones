@@ -1,0 +1,9 @@
+.env*
+!.env.example
+gradlew*
+gradle
+.gradle
+.idea
+build
+out
+.direnv
