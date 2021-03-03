@@ -21,6 +21,7 @@ import kotlin.math.roundToInt
 import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.server.cio.CIO as ServerCIO
 
+@Serializable
 data class Summary(val summary: String)
 @Serializable
 data class Effort(val summary: String, val efforts: Double)
@@ -51,9 +52,8 @@ fun main() {
             install(AutoHeadResponse)
 
             routing {
-
                 authenticate {
-                    get("/regions") {
+                    post("/regions") {
                         log.process("Fetching Project Cards") {
                             projectCards(setOf(env[MILESTONES_JIRA_CUSTOMER_REGION_FIELD]))
                         }.let { cards ->
