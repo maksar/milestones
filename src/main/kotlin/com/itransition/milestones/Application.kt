@@ -48,12 +48,16 @@ fun main() {
             install(CallLogging)
             install(Authentication) { basic { validate { if (it.name == env[MILESTONES_USERNAME] && it.password == env[MILESTONES_PASSWORD]) UserIdPrincipal(it.name) else null } } }
             install(ContentNegotiation) { json() }
-            install(CORS) { anyHost() }
+            install(CORS) {
+                method(HttpMethod.Options)
+                anyHost()
+                allowCredentials = true
+            }
             install(AutoHeadResponse)
 
             routing {
+                options("/regions") { call.respond(OK) }
                 authenticate {
-                    options("/regions") { call.respond(OK) }
                     post("/regions") {
                         log.process("Fetching Project Cards") {
                             projectCards(setOf(env[MILESTONES_JIRA_CUSTOMER_REGION_FIELD]))
