@@ -16,6 +16,7 @@ import io.ktor.serialization.*
 import io.ktor.server.engine.*
 import kotlinx.coroutines.FlowPreview
 import kotlinx.serialization.Serializable
+import org.slf4j.event.Level
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import io.ktor.client.engine.cio.CIO as ClientCIO
@@ -45,18 +46,16 @@ fun main() {
     }, environment = applicationEngineEnvironment {
         connector { port = env[MILESTONES_PORT] }
         module {
-            install(CallLogging)
+            install(CallLogging) { level = Level.DEBUG}
             install(Authentication) { basic { validate { if (it.name == env[MILESTONES_USERNAME] && it.password == env[MILESTONES_PASSWORD]) UserIdPrincipal(it.name) else null } } }
             install(ContentNegotiation) { json() }
             install(CORS) {
                 method(HttpMethod.Options)
                 anyHost()
-                allowCredentials = true
+                allowHeaders { true }
             }
-            install(AutoHeadResponse)
 
             routing {
-                options("/regions") { call.respond(OK) }
                 authenticate {
                     post("/regions") {
                         log.process("Fetching Project Cards") {
@@ -99,7 +98,6 @@ fun main() {
                         call.respond(OK)
                     }
                 }
-
             }
         }
     }).start(true)

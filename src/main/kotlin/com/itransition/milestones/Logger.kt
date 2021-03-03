@@ -1,7 +1,7 @@
 package com.itransition.milestones
 
 import ch.qos.logback.classic.Level.ERROR
-import ch.qos.logback.classic.Level.DEBUG
+import ch.qos.logback.classic.Level.INFO
 import ch.qos.logback.classic.Level.TRACE
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.LoggerContext
@@ -16,7 +16,7 @@ fun configureLogs() =
     }.also {
         mapOf(
             Logger.ROOT_LOGGER_NAME to ERROR,
-            "org.apache.http" to DEBUG,
+            "org.apache.http" to INFO,
             "Application" to TRACE
         ).map { (namespace, level) ->
             (LoggerFactory.getLogger(namespace) as Logger).level = level
