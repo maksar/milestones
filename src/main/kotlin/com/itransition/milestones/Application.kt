@@ -1,32 +1,33 @@
 package com.itransition.milestones
 
-import io.atlassian.fugue.Iterables.rangeUntil
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.client.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.features.json.*
 import io.ktor.client.request.*
 import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.http.ContentType.Application.Json
 import io.ktor.http.HttpStatusCode.Companion.OK
-import io.ktor.jackson.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
+import io.ktor.serialization.*
 import io.ktor.server.engine.*
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.toCollection
+import kotlinx.serialization.Serializable
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.server.cio.CIO as ServerCIO
 
-
 data class Summary(val summary: String)
+@Serializable
 data class Effort(val summary: String, val efforts: Double)
+@Serializable
+data class Region(val parts: List<String>, val count: Int)
+@Serializable
+data class Statistics(val regions: List<Region>, val width: Int)
 
 fun Double.roundTo(numFractionDigits: Int): Double =
     10.0.pow(numFractionDigits.toDouble()).let { factor ->
@@ -36,23 +37,43 @@ fun Double.roundTo(numFractionDigits: Int): Double =
 @FlowPreview
 fun main() {
     configureLogs()
-    embeddedServer(ServerCIO, environment = applicationEngineEnvironment {
+    embeddedServer(ServerCIO, configure =
+    {
+        connectionGroupSize = 1
+        workerGroupSize = 1
+    }, environment = applicationEngineEnvironment {
         connector { port = env[MILESTONES_PORT] }
         module {
-            install(CallLogging) { }
+            install(CallLogging)
             install(Authentication) { basic { validate { if (it.name == env[MILESTONES_USERNAME] && it.password == env[MILESTONES_PASSWORD]) UserIdPrincipal(it.name) else null } } }
-            install(ContentNegotiation) { jackson() }
+            install(ContentNegotiation) { json() }
+            install(CORS) { anyHost() }
+            install(AutoHeadResponse)
 
             routing {
+
                 authenticate {
+                    get("/regions") {
+                        log.process("Fetching Project Cards") {
+                            projectCards(setOf(env[MILESTONES_JIRA_CUSTOMER_REGION_FIELD]))
+                        }.let { cards ->
+                            val regions = cards.mapNotNull { it.getField(env[MILESTONES_JIRA_CUSTOMER_REGION_FIELD])?.value?.toString() }
+                            val map = regions.groupingBy { it }.eachCount()
+                            val size = regions.map { it.split(", ").size }.maxOrNull()!!
+                            call.respond(
+                                Statistics(
+                                    regions.distinct().map { region ->
+                                        Region(region.split(", ").plus(generateSequence { "" }.take(10)).take(size), map.getValue(region))
+                                    }, size
+                                )
+                            )
+                        }
+                    }
+
                     post("/") {
                         log.process("Fetching Project Cards") {
-                            search(0, 1).total.let { total ->
-                                rangeUntil(0, total, env[MILESTONES_PAGE_SIZE]).asFlow()
-                                    .concurrentFlatMap { start -> search(start, env[MILESTONES_PAGE_SIZE]).issues }
-                                    .toCollection(mutableListOf())
-                            }
-                        }.associateBy { it.summary }.let { mapping ->
+                            projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])).associateBy { it.summary }
+                        }.let { mapping ->
                             log.process("Executing callback") {
                                 HttpClient(ClientCIO) {
                                     install(JsonFeature) { serializer = JacksonSerializer() }

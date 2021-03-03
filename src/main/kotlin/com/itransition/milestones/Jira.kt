@@ -15,6 +15,7 @@ import com.atlassian.jira.rest.client.internal.async.DisposableHttpClient
 import com.atlassian.sal.api.ApplicationProperties
 import com.atlassian.sal.api.UrlMode
 import com.atlassian.sal.api.executor.ThreadLocalContextManager
+import io.atlassian.fugue.Iterables
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retry
+import kotlinx.coroutines.flow.toCollection
 import java.io.File
 import java.net.SocketTimeoutException
 import java.net.URI
@@ -112,4 +114,11 @@ fun <T, R> Flow<T>.concurrentFlatMap(transform: suspend (T) -> Iterable<R>) = fl
     flow { emitAll(transform(value).asFlow()) }
 }.retryOnTimeouts()
 
-fun search(start: Int, per: Int): SearchResult = jiraClient.searchClient.searchJql("project = ${env[MILESTONES_JIRA_PROJECT]}", per, start, MINIMUM_SET_OF_FIELDS).get()
+private fun search(start: Int, per: Int, fields: Set<String> = setOf()): SearchResult = jiraClient.searchClient.searchJql("project = ${env[MILESTONES_JIRA_PROJECT]}", per, start, MINIMUM_SET_OF_FIELDS.plus(fields)).get()
+
+suspend fun projectCards(fields: Set<String>) =
+    search(0, 1).total.let { total ->
+        Iterables.rangeUntil(0, total, env[MILESTONES_PAGE_SIZE]).asFlow()
+            .concurrentFlatMap { start -> search(start, env[MILESTONES_PAGE_SIZE], fields).issues }
+            .toCollection(mutableListOf())
+    }

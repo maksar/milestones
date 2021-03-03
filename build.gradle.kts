@@ -7,6 +7,7 @@ val kotlin_version: String by project
 plugins {
     application
     kotlin("jvm") version "1.4.30"
+    kotlin("plugin.serialization") version "1.4.30"
 }
 
 group = "com.itransition.milestones"
@@ -32,6 +33,8 @@ dependencies {
     implementation("io.ktor:ktor-client-core:$ktor_version")
     implementation("io.ktor:ktor-client-cio:$ktor_version")
     implementation("io.ktor:ktor-client-jackson:$ktor_version")
+    implementation("io.ktor:ktor-serialization:$ktor_version")
+
     implementation("com.atlassian.jira", "jira-rest-java-client-app", "5.2.2") {
         exclude("org.slf4j", "slf4j-log4j12")
     }
