@@ -28,7 +28,7 @@ data class Effort(val summary: String, val efforts: Double)
 @Serializable
 data class Region(val parts: List<String>, val count: Int)
 @Serializable
-data class Statistics(val regions: List<Region>, val width: Int)
+data class Statistics(val width: Int, val regions: List<Region>)
 
 fun Double.roundTo(numFractionDigits: Int): Double =
     10.0.pow(numFractionDigits.toDouble()).let { factor ->
@@ -63,9 +63,10 @@ fun main() {
                             val size = regions.map { it.split(", ").size }.maxOrNull()!!
                             call.respond(
                                 Statistics(
+                                    size,
                                     regions.distinct().map { region ->
                                         Region(region.split(", ").plus(generateSequence { "" }.take(10)).take(size), map.getValue(region))
-                                    }, size
+                                    }
                                 )
                             )
                         }
