@@ -53,7 +53,7 @@ fun main() {
 
             routing {
                 authenticate {
-                    options { call.respond(OK) }
+                    options("/regions") { call.respond(OK) }
                     post("/regions") {
                         log.process("Fetching Project Cards") {
                             projectCards(setOf(env[MILESTONES_JIRA_CUSTOMER_REGION_FIELD]))
