@@ -184,20 +184,10 @@ fun <T, R> Flow<T>.concurrentFlatMap(transform: suspend (T) -> Iterable<R>) =
         flow { emitAll(transform(value).asFlow()) }
     }.retryOnTimeouts()
 
+@FlowPreview
 suspend fun projectCards(fields: Set<String>) =
     search(0, 1).total.let { total ->
         rangeUntil(0, total, env[MILESTONES_PAGE_SIZE]).asFlow()
             .concurrentFlatMap { start -> search(start, env[MILESTONES_PAGE_SIZE], fields).issues }
             .toList()
     }
-
-internal val JIRA_METADATA = jiraClient.issueClient.getCreateIssueMetadata(
-    GetCreateIssueMetadataOptionsBuilder().withExpandedIssueTypesFields().withExpandos()
-        .build()
-).get()
-
-internal val PROJECT_CARDS = JIRA_METADATA.first { it.name == "Project Cards" }
-
-internal val PROJECT_CARD = PROJECT_CARDS.issueTypes.first { it.name == "Project Card" }
-
-internal val INDUSTRY = jiraClient.metadataClient.fields.get().first { it.name == "Industry" }

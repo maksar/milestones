@@ -45,9 +45,6 @@ fun Double.roundTo(numFractionDigits: Int): Double =
 fun main() {
     configureLogs()
 
-
-
-
     embeddedServer(ServerCIO, environment = applicationEngineEnvironment {
         connector { port = env[MILESTONES_PORT] }
 
