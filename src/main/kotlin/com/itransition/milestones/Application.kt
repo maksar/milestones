@@ -28,10 +28,10 @@ import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.server.cio.CIO as ServerCIO
 
 @Serializable
-data class Summary(val summary: String)
+data class Summary(val key: String)
 
 @Serializable
-data class Effort(val summary: String, val efforts: Double, val key: String, val date: String)
+data class Effort(val key: String, val summary: String, val efforts: Double, val date: String)
 
 @Serializable
 data class StatItem(val parts: List<String>, val count: Int)
@@ -131,19 +131,19 @@ fun main() {
 
                     post("/") {
                         log.process("Fetching Project Cards") {
-                            projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD], env[MILESTONES_JIRA_FIRST_UOW_FIELD])).associateBy { it.summary }
+                            projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD], env[MILESTONES_JIRA_FIRST_UOW_FIELD])).associateBy { it.key }
                         }.let { mapping ->
                             log.process("Executing callback") {
                                 HttpClient(ClientCIO) { install(JsonFeature) }.post<Any>(env[MILESTONES_CALLBACK_URL]) {
                                     contentType(Json)
                                     body = call.receive<Array<Summary>>()
-                                        .also {  log.trace("Got: ${it.map(Summary::summary).joinToString(", ")} projects in request") }
-                                        .sortedBy { it.summary }.filter { it.summary.isNotEmpty() }
+                                        .also {  log.trace("Got: ${it.map(Summary::key).joinToString(", ")} projects in request") }
+                                        .sortedBy { it.key }.filter { it.key.isNotEmpty() }
                                         .mapNotNull { project ->
-                                            mapping[project.summary]?.let { card ->
+                                            mapping[project.key]?.let { card ->
                                                 val efforts = card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0
                                                 val date = card.getField(env[MILESTONES_JIRA_FIRST_UOW_FIELD])?.value?.let { DateTime.parse(it.toString()).toString("dd.MM.yyyy") } ?: ""
-                                                Effort(project.summary, (efforts as Double / 168).roundTo(2), card.key, date)
+                                                Effort(project.key, card.summary, (efforts as Double / 168).roundTo(2), date)
                                             }
                                         }.also { log.trace("Going to send: ${it.joinToString(", ") { "${it.summary} - ${it.efforts}" }} to callback") }
                                 }
