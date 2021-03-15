@@ -19,6 +19,9 @@ import io.ktor.server.engine.*
 import kotlinx.coroutines.FlowPreview
 import kotlinx.serialization.Serializable
 import org.codehaus.jettison.json.JSONObject
+import org.joda.time.DateTime
+import java.text.DateFormat
+import java.util.*
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import io.ktor.client.engine.cio.CIO as ClientCIO
@@ -28,7 +31,7 @@ import io.ktor.server.cio.CIO as ServerCIO
 data class Summary(val summary: String)
 
 @Serializable
-data class Effort(val summary: String, val efforts: Double, val id: Long)
+data class Effort(val summary: String, val efforts: Double, val key: String, val date: String)
 
 @Serializable
 data class StatItem(val parts: List<String>, val count: Int)
@@ -128,7 +131,7 @@ fun main() {
 
                     post("/") {
                         log.process("Fetching Project Cards") {
-                            projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])).associateBy { it.summary }
+                            projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD], env[MILESTONES_JIRA_FIRST_UOW_FIELD])).associateBy { it.summary }
                         }.let { mapping ->
                             log.process("Executing callback") {
                                 HttpClient(ClientCIO) { install(JsonFeature) }.post<Any>(env[MILESTONES_CALLBACK_URL]) {
@@ -138,9 +141,9 @@ fun main() {
                                         .sortedBy { it.summary }.filter { it.summary.isNotEmpty() }
                                         .mapNotNull { project ->
                                             mapping[project.summary]?.let { card ->
-                                                card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value?.let { efforts ->
-                                                    Effort(project.summary, (efforts as Double / 168).roundTo(2), card.id)
-                                                }
+                                                val efforts = card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0
+                                                val date = card.getField(env[MILESTONES_JIRA_FIRST_UOW_FIELD])?.value?.let { DateTime.parse(it.toString()).toString("dd.MM.yyyy") } ?: ""
+                                                Effort(project.summary, (efforts as Double / 168).roundTo(2), card.key, date)
                                             }
                                         }.also { log.trace("Going to send: ${it.joinToString(", ") { "${it.summary} - ${it.efforts}" }} to callback") }
                                 }
