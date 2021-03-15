@@ -28,7 +28,7 @@ import io.ktor.server.cio.CIO as ServerCIO
 data class Summary(val summary: String)
 
 @Serializable
-data class Effort(val summary: String, val efforts: Double)
+data class Effort(val summary: String, val efforts: Double, val id: Long)
 
 @Serializable
 data class StatItem(val parts: List<String>, val count: Int)
@@ -137,8 +137,10 @@ fun main() {
                                         .also {  log.trace("Got: ${it.map(Summary::summary).joinToString(", ")} projects in request") }
                                         .sortedBy { it.summary }.filter { it.summary.isNotEmpty() }
                                         .mapNotNull { project ->
-                                            mapping[project.summary]?.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value?.let { efforts ->
-                                                Effort(project.summary, (efforts as Double / 168).roundTo(2))
+                                            mapping[project.summary]?.let { card ->
+                                                card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value?.let { efforts ->
+                                                    Effort(project.summary, (efforts as Double / 168).roundTo(2), card.id)
+                                                }
                                             }
                                         }.also { log.trace("Going to send: ${it.joinToString(", ") { "${it.summary} - ${it.efforts}" }} to callback") }
                                 }
