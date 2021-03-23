@@ -1,5 +1,11 @@
 package com.itransition.milestones
 
+import com.atlassian.jira.rest.client.api.domain.IssueField
+import com.atlassian.jira.rest.client.api.domain.IssueFieldId
+import com.atlassian.jira.rest.client.api.domain.IssueFieldId.SUMMARY_FIELD
+import com.atlassian.jira.rest.client.api.domain.input.FieldInput
+import com.atlassian.jira.rest.client.api.domain.input.IssueInput
+import com.atlassian.jira.rest.client.api.domain.input.IssueInput.createWithFields
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.client.*
@@ -127,6 +133,10 @@ fun main() {
                                 })
                             )
                         }
+                    }
+
+                    post("/card") {
+                        call.respondText(jiraClient.issueClient.createIssue(createWithFields(FieldInput(SUMMARY_FIELD, call.receiveText()))).get().key)
                     }
 
                     post("/") {
