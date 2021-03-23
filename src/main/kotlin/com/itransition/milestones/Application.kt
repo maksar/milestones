@@ -157,7 +157,7 @@ fun main() {
                                         .sortedBy { it.key }.filter { it.key.isNotEmpty() }
                                         .mapNotNull { project ->
                                             mapping[project.key]?.let { card ->
-                                                val efforts = card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0
+                                                val efforts = card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0.0
                                                 val date = card.getField(env[MILESTONES_JIRA_FIRST_UOW_FIELD])?.value?.let { DateTime.parse(it.toString()).toString("dd.MM.yyyy") } ?: ""
                                                 Effort(project.key, card.summary, (efforts as Double / 168).roundTo(2), date)
                                             }
