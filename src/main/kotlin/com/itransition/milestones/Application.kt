@@ -2,7 +2,9 @@ package com.itransition.milestones
 
 import com.atlassian.jira.rest.client.api.domain.IssueField
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId
+import com.atlassian.jira.rest.client.api.domain.IssueFieldId.PROJECT_FIELD
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId.SUMMARY_FIELD
+import com.atlassian.jira.rest.client.api.domain.input.ComplexIssueInputFieldValue
 import com.atlassian.jira.rest.client.api.domain.input.FieldInput
 import com.atlassian.jira.rest.client.api.domain.input.IssueInput
 import com.atlassian.jira.rest.client.api.domain.input.IssueInput.createWithFields
@@ -136,7 +138,11 @@ fun main() {
                     }
 
                     post("/card") {
-                        call.respondText(jiraClient.issueClient.createIssue(createWithFields(FieldInput(SUMMARY_FIELD, call.receiveText()))).get().key)
+                        call.respondText(jiraClient.issueClient.createIssue(createWithFields(
+                            FieldInput(IssueFieldId.ISSUE_TYPE_FIELD, ComplexIssueInputFieldValue(mapOf("name" to jiraClient.projectClient.getProject(env[MILESTONES_JIRA_PROJECT]).get().issueTypes.first().name))),
+                            FieldInput(PROJECT_FIELD, ComplexIssueInputFieldValue(mapOf("key" to env[MILESTONES_JIRA_PROJECT]))),
+                            FieldInput(SUMMARY_FIELD, call.receiveText())
+                        )).get().key)
                     }
 
                     post("/") {
