@@ -1,12 +1,10 @@
 package com.itransition.milestones
 
-import com.atlassian.jira.rest.client.api.domain.IssueField
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId.PROJECT_FIELD
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId.SUMMARY_FIELD
 import com.atlassian.jira.rest.client.api.domain.input.ComplexIssueInputFieldValue
 import com.atlassian.jira.rest.client.api.domain.input.FieldInput
-import com.atlassian.jira.rest.client.api.domain.input.IssueInput
 import com.atlassian.jira.rest.client.api.domain.input.IssueInput.createWithFields
 import io.ktor.application.*
 import io.ktor.auth.*
@@ -28,7 +26,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.serialization.Serializable
 import org.codehaus.jettison.json.JSONObject
 import org.joda.time.DateTime
-import java.text.DateFormat
 import java.util.*
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -39,7 +36,7 @@ import io.ktor.server.cio.CIO as ServerCIO
 data class Summary(val key: String)
 
 @Serializable
-data class Effort(val key: String, val summary: String, val efforts: Double, val date: String)
+data class Effort(val key: String, val summary: String, val totalEfforts: Double, val lastMonthEfforts: Double, val typeOfContract: String, val date: String)
 
 @Serializable
 data class StatItem(val parts: List<String>, val count: Int)
@@ -99,17 +96,12 @@ fun main() {
                                     it.getField(env[fields.second])?.value?.toString()?.split(", ") ?: emptyList()
                                 }
                                 val result = mainField.zip(clarifications, List<String>::plus)
-
                                 val map = result.groupingBy { it }.eachCount()
-
                                 val size = result.maxOf { it.size }
 
                                 call.respond(
-                                    Statistics(size, (result.distinct().union(possibleValues.getValue(env[fields.first
-
-                                    ]).map(::listOf))).map { item ->
+                                    Statistics(size, (result.distinct().union(possibleValues.getValue(env[fields.first]).map(::listOf))).map { item ->
                                         StatItem(
-
                                             item.plus(generateSequence { "" }.take(10)).take(size),
                                             map.getOrDefault(item, 0)
                                         )
@@ -147,7 +139,7 @@ fun main() {
 
                     post("/") {
                         log.process("Fetching Project Cards") {
-                            projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD], env[MILESTONES_JIRA_FIRST_UOW_FIELD])).associateBy { it.key }
+                            projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD], env[MILESTONES_JIRA_PREVIOUS_MONTH_EFFORTS_FIELD], env[MILESTONES_JIRA_FIRST_UOW_FIELD], env[MILESTONES_JIRA_TYPE_OF_CONTRACT_FIELD])).associateBy { it.key }
                         }.let { mapping ->
                             log.process("Executing callback") {
                                 HttpClient(ClientCIO) { install(JsonFeature) }.post<Any>(env[MILESTONES_CALLBACK_URL]) {
@@ -157,11 +149,15 @@ fun main() {
                                         .sortedBy { it.key }.filter { it.key.isNotEmpty() }
                                         .mapNotNull { project ->
                                             mapping[project.key]?.let { card ->
-                                                val efforts = card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0.0
+                                                val totalEfforts = ((card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0.0) as Double / 168).roundTo(2)
+                                                val lastMonthEfforts = ((card.getField(env[MILESTONES_JIRA_PREVIOUS_MONTH_EFFORTS_FIELD])?.value ?: 0.0) as Double / 168).roundTo(2)
+                                                val typeOfContract = (card.getField(env[MILESTONES_JIRA_TYPE_OF_CONTRACT_FIELD])?.value?.let {
+                                                    (it as JSONObject).getString("value")
+                                                } ?: "")
                                                 val date = card.getField(env[MILESTONES_JIRA_FIRST_UOW_FIELD])?.value?.let { DateTime.parse(it.toString()).toString("dd.MM.yyyy") } ?: ""
-                                                Effort(project.key, card.summary, (efforts as Double / 168).roundTo(2), date)
+                                                Effort(project.key, card.summary, totalEfforts, lastMonthEfforts, typeOfContract, date)
                                             }
-                                        }.also { log.trace("Going to send: ${it.joinToString(", ") { "${it.summary} - ${it.efforts}" }} to callback") }
+                                        }.also { log.trace("Going to send: ${it.map(Effort::summary).joinToString(", ")} to callback") }
                                 }
                             }
                         }
