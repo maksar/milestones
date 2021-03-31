@@ -3,6 +3,7 @@ package com.itransition.milestones
 
 
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId
+import com.atlassian.jira.rest.client.api.domain.IssueFieldId.ISSUE_TYPE_FIELD
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId.PROJECT_FIELD
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId.SUMMARY_FIELD
 import com.atlassian.jira.rest.client.api.domain.input.ComplexIssueInputFieldValue
@@ -35,6 +36,9 @@ import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.server.cio.CIO as ServerCIO
 
 @Serializable
+data class Card(val summary: String, val department: String)
+
+@Serializable
 data class Summary(val key: String)
 
 @Serializable
@@ -50,6 +54,32 @@ fun Double.roundTo(numFractionDigits: Int): Double =
     10.0.pow(numFractionDigits.toDouble()).let { factor ->
         (this * factor).roundToInt() / factor
     }
+
+fun team(c: String) = "Team $c"
+
+val teamHeads = mapOf(
+    team("Salesforce") to "s.korolev",
+    team("Brest") to "v.ermolik",
+    team("Poland") to "v.krukovsky",
+    team("Suboch") to "e.suboch",
+    team("Strelchenko") to "k.strelchenko",
+    team("Shults") to "p.shults",
+    team("Romanchenko") to "a.romanchenko",
+    team("Nikitin") to "e.nikitin",
+    team("Mazur-Grabovsky") to "d.mazur-grabovsky",
+    team("Mahnach") to "v.mahnach",
+    team("Korzun") to "a.korzun",
+    team("Korolev") to "s.korolev",
+    team("Karpenkov") to "d.karpenkov",
+    team("Kalganov") to "a.kalganov",
+    team("Gomanchuk") to "s.gomanchuk",
+    team("Chakur") to "s.chakur",
+    team("Botko") to "a.botko",
+    team("Bogomazov") to "a.bogomazov",
+    team("Atroshko") to "g.atroshko",
+    team("Adamova") to "n.adamova",
+    team("Shestakov") to "a.shestakov"
+)
 
 @FlowPreview
 fun main() {
@@ -132,11 +162,16 @@ fun main() {
                     }
 
                     post("/card") {
-                        call.respondText(jiraClient.issueClient.createIssue(createWithFields(
-                            FieldInput(IssueFieldId.ISSUE_TYPE_FIELD, ComplexIssueInputFieldValue(mapOf("name" to jiraClient.projectClient.getProject(env[MILESTONES_JIRA_PROJECT]).get().issueTypes.first().name))),
+                        val card = call.receive<Card>()
+                        val issue = jiraClient.issueClient.createIssue(createWithFields(
+                            FieldInput(ISSUE_TYPE_FIELD, ComplexIssueInputFieldValue(mapOf("name" to jiraClient.projectClient.getProject(env[MILESTONES_JIRA_PROJECT]).get().issueTypes.first().name))),
                             FieldInput(PROJECT_FIELD, ComplexIssueInputFieldValue(mapOf("key" to env[MILESTONES_JIRA_PROJECT]))),
-                            FieldInput(SUMMARY_FIELD, call.receiveText())
-                        )).get().key)
+                            FieldInput(SUMMARY_FIELD, card.summary)
+                        )).get()
+                        jiraClient.issueClient.updateIssue(issue.key, createWithFields(
+                            FieldInput(env[MILESTONES_JIRA_TEAM_HEAD_FIELD], ComplexIssueInputFieldValue(mapOf("name" to teamHeads.getValue(card.department))))
+                        )).get()
+                        call.respondText(issue.key)
                     }
 
                     post("/") {

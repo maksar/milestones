@@ -4,18 +4,13 @@ import com.atlassian.event.api.EventPublisher
 import com.atlassian.httpclient.apache.httpcomponents.DefaultHttpClientFactory
 import com.atlassian.httpclient.api.factory.HttpClientOptions
 import com.atlassian.jira.rest.client.api.AuthenticationHandler
-import com.atlassian.jira.rest.client.api.GetCreateIssueMetadataOptionsBuilder
 import com.atlassian.jira.rest.client.api.IssueRestClient
 import com.atlassian.jira.rest.client.api.JiraRestClient
 import com.atlassian.jira.rest.client.api.MetadataRestClient
-import com.atlassian.jira.rest.client.api.ProjectRestClient
 import com.atlassian.jira.rest.client.api.SearchRestClient
 import com.atlassian.jira.rest.client.api.SessionRestClient
 import com.atlassian.jira.rest.client.api.domain.CimFieldInfo
-import com.atlassian.jira.rest.client.api.domain.CimIssueType
-import com.atlassian.jira.rest.client.api.domain.CimProject
 import com.atlassian.jira.rest.client.api.domain.CustomFieldOption
-import com.atlassian.jira.rest.client.api.domain.Issue
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId
 import com.atlassian.jira.rest.client.api.domain.Project
 import com.atlassian.jira.rest.client.api.domain.SearchResult
@@ -24,22 +19,16 @@ import com.atlassian.jira.rest.client.internal.async.AsynchronousIssueRestClient
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClient
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
 import com.atlassian.jira.rest.client.internal.async.AsynchronousMetadataRestClient
-import com.atlassian.jira.rest.client.internal.async.AsynchronousProjectRestClient
 import com.atlassian.jira.rest.client.internal.async.AsynchronousSearchRestClient
 import com.atlassian.jira.rest.client.internal.async.AsynchronousSessionRestClient
 import com.atlassian.jira.rest.client.internal.async.AtlassianHttpClientDecorator
 import com.atlassian.jira.rest.client.internal.async.DisposableHttpClient
 import com.atlassian.jira.rest.client.internal.json.CimFieldsInfoMapJsonParser
-import com.atlassian.jira.rest.client.internal.json.CimIssueTypeJsonParser
-import com.atlassian.jira.rest.client.internal.json.CimProjectJsonParser
-import com.atlassian.jira.rest.client.internal.json.CreateIssueMetadataJsonParser
-import com.atlassian.jira.rest.client.internal.json.GenericJsonArrayParser
 import com.atlassian.jira.rest.client.internal.json.JsonObjectParser
 import com.atlassian.sal.api.ApplicationProperties
 import com.atlassian.sal.api.UrlMode
 import com.atlassian.sal.api.executor.ThreadLocalContextManager
 import io.atlassian.fugue.Iterables.rangeUntil
-import io.atlassian.util.concurrent.Promise
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -75,7 +64,7 @@ class AsynchronousHttpClientFactoryCustom : AsynchronousHttpClientFactory() {
         override fun getVersion(): String = "unknown"
         override fun getBuildDate(): Date = throw UnsupportedOperationException()
         override fun getBuildNumber(): String = 0.toString()
-        override fun getHomeDirectory(): File? = File(".")
+        override fun getHomeDirectory(): File = File(".")
         override fun getPropertyValue(s: String): String = throw UnsupportedOperationException()
     }
 
