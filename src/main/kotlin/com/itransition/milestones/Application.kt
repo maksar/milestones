@@ -78,9 +78,7 @@ val teamHeads = mapOf(
     team("Bogomazov") to "a.bogomazov",
     team("Atroshko") to "g.atroshko",
     team("Adamova") to "n.adamova",
-    team("Sinkevich") to "s.sinkevich",
-    team("Shestakov") to "a.shestakov",
-    team("Internal Automation") to "v.bayandin"
+    team("Shestakov") to "a.shestakov"
 )
 
 @FlowPreview
@@ -171,7 +169,8 @@ fun main() {
                             FieldInput(SUMMARY_FIELD, card.summary)
                         )).get()
                         jiraClient.issueClient.updateIssue(issue.key, createWithFields(
-                            FieldInput(env[MILESTONES_JIRA_TEAM_HEAD_FIELD], ComplexIssueInputFieldValue(mapOf("name" to teamHeads.getValue(card.department))))
+                            FieldInput(env[MILESTONES_JIRA_TEAM_HEAD_FIELD], ComplexIssueInputFieldValue(mapOf("name" to teamHeads.getValue(card.department)))),
+                            FieldInput(env[MILESTONES_JIRA_DEPARTMENT_FIELD], ComplexIssueInputFieldValue(mapOf("value" to "Production")))
                         )).get()
                         call.respondText(issue.key)
                     }
