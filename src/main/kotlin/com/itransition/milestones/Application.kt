@@ -42,7 +42,7 @@ data class Card(val summary: String, val department: String)
 data class Summary(val key: String)
 
 @Serializable
-data class Effort(val key: String, val summary: String, val totalEfforts: Double, val lastMonthEfforts: Double, val typeOfContract: String, val date: String)
+data class Effort(val key: String, val status: String, val summary: String, val totalEfforts: Double, val lastMonthEfforts: Double, val typeOfContract: String, val date: String)
 
 @Serializable
 data class StatItem(val parts: List<String>, val count: Int)
@@ -193,7 +193,7 @@ fun main() {
                                                     (it as JSONObject).getString("value")
                                                 } ?: "")
                                                 val date = card.getField(env[MILESTONES_JIRA_FIRST_UOW_FIELD])?.value?.let { DateTime.parse(it.toString()).toString("dd.MM.yyyy") } ?: ""
-                                                Effort(project.key, card.summary, totalEfforts, lastMonthEfforts, typeOfContract, date)
+                                                Effort(project.key, card.status.name, card.summary, totalEfforts, lastMonthEfforts, typeOfContract, date)
                                             }
                                         }.also { log.trace("Going to send: ${it.map(Effort::summary).joinToString(", ")} to callback") }
                                 }
