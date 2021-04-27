@@ -39,7 +39,7 @@ import io.ktor.server.cio.CIO as ServerCIO
 data class Card(val summary: String, val department: String)
 
 @Serializable
-data class Summary(val key: String)
+data class Payload(val callback: String, val keys: Array<String>)
 
 @Serializable
 data class Effort(val key: String, val status: String, val summary: String, val totalEfforts: Double, val lastMonthEfforts: Double, val typeOfContract: String, val date: String)
@@ -180,22 +180,24 @@ fun main() {
                             projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD], env[MILESTONES_JIRA_PREVIOUS_MONTH_EFFORTS_FIELD], env[MILESTONES_JIRA_FIRST_UOW_FIELD], env[MILESTONES_JIRA_TYPE_OF_CONTRACT_FIELD])).associateBy { it.key }
                         }.let { mapping ->
                             log.process("Executing callback") {
-                                HttpClient(ClientCIO) { install(JsonFeature) }.post<Any>(env[MILESTONES_CALLBACK_URL]) {
-                                    contentType(Json)
-                                    body = call.receive<Array<Summary>>()
-                                        .also {  log.trace("Got: ${it.map(Summary::key).joinToString(", ")} projects in request") }
-                                        .sortedBy { it.key }.filter { it.key.isNotEmpty() }
-                                        .mapNotNull { project ->
-                                            mapping[project.key]?.let { card ->
-                                                val totalEfforts = ((card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0.0) as Double / 168).roundTo(2)
-                                                val lastMonthEfforts = ((card.getField(env[MILESTONES_JIRA_PREVIOUS_MONTH_EFFORTS_FIELD])?.value ?: 0.0) as Double / 168).roundTo(2)
-                                                val typeOfContract = (card.getField(env[MILESTONES_JIRA_TYPE_OF_CONTRACT_FIELD])?.value?.let {
-                                                    (it as JSONObject).getString("value")
-                                                } ?: "")
-                                                val date = card.getField(env[MILESTONES_JIRA_FIRST_UOW_FIELD])?.value?.let { DateTime.parse(it.toString()).toString("dd.MM.yyyy") } ?: ""
-                                                Effort(project.key, card.status.name, card.summary, totalEfforts, lastMonthEfforts, typeOfContract, date)
-                                            }
-                                        }.also { log.trace("Going to send: ${it.map(Effort::summary).joinToString(", ")} to callback") }
+                                call.receive<Payload>().let { payload ->
+                                    HttpClient(ClientCIO) { install(JsonFeature) }.post<Any>(payload.callback) {
+                                        contentType(Json)
+                                        body = payload.keys
+                                            .also { log.trace("Got: ${it.joinToString(", ")} projects in request") }
+                                            .sortedBy { it }.filter { it.isNotEmpty() }
+                                            .mapNotNull { project ->
+                                                mapping[project]?.let { card ->
+                                                    val totalEfforts = ((card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0.0) as Double / 168).roundTo(2)
+                                                    val lastMonthEfforts = ((card.getField(env[MILESTONES_JIRA_PREVIOUS_MONTH_EFFORTS_FIELD])?.value ?: 0.0) as Double / 168).roundTo(2)
+                                                    val typeOfContract = (card.getField(env[MILESTONES_JIRA_TYPE_OF_CONTRACT_FIELD])?.value?.let {
+                                                        (it as JSONObject).getString("value")
+                                                    } ?: "")
+                                                    val date = card.getField(env[MILESTONES_JIRA_FIRST_UOW_FIELD])?.value?.let { DateTime.parse(it.toString()).toString("dd.MM.yyyy") } ?: ""
+                                                    Effort(project, card.status.name, card.summary, totalEfforts, lastMonthEfforts, typeOfContract, date)
+                                                }
+                                            }.also { log.trace("Going to send: ${it.map(Effort::summary).joinToString(", ")} to callback") }
+                                    }
                                 }
                             }
                         }
