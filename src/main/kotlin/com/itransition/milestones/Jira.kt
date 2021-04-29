@@ -164,8 +164,8 @@ fun <T> Flow<T>.retryOnTimeouts() =
     this.flowOn(Dispatchers.IO)
         .retry { cause -> generateSequence(cause, Throwable::cause).any { it is SocketTimeoutException } }
 
-private fun search(start: Int, per: Int, fields: Set<String> = setOf()): SearchResult =
-    jiraClient.searchClient.searchJql("project = ${env[MILESTONES_JIRA_PROJECT]}", per, start, MINIMUM_SET_OF_FIELDS.plus(fields)).get()
+private fun search(jql: String, start: Int, per: Int, fields: Set<String> = setOf()): SearchResult =
+    jiraClient.searchClient.searchJql(jql, per, start, MINIMUM_SET_OF_FIELDS.plus(fields)).get()
 
 @FlowPreview
 fun <T, R> Flow<T>.concurrentFlatMap(transform: suspend (T) -> Iterable<R>) =
@@ -174,9 +174,13 @@ fun <T, R> Flow<T>.concurrentFlatMap(transform: suspend (T) -> Iterable<R>) =
     }.retryOnTimeouts()
 
 @FlowPreview
-suspend fun projectCards(fields: Set<String>) =
-    search(0, 1).total.let { total ->
+suspend fun projectCards(jql: String, fields: Set<String>) =
+    search(jql, 0, 1).total.let { total ->
         rangeUntil(0, total, env[MILESTONES_PAGE_SIZE]).asFlow()
-            .concurrentFlatMap { start -> search(start, env[MILESTONES_PAGE_SIZE], fields).issues }
+            .concurrentFlatMap { start -> search(jql, start, env[MILESTONES_PAGE_SIZE], fields).issues }
             .toList()
     }
+
+@FlowPreview
+suspend fun allProjectCards(fields: Set<String>) =
+    projectCards("project = ${env[MILESTONES_JIRA_PROJECT]}", fields)

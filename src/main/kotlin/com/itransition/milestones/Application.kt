@@ -2,10 +2,9 @@ package com.itransition.milestones
 
 
 
+import com.atlassian.jira.rest.client.api.domain.Issue
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId
-import com.atlassian.jira.rest.client.api.domain.IssueFieldId.ISSUE_TYPE_FIELD
-import com.atlassian.jira.rest.client.api.domain.IssueFieldId.PROJECT_FIELD
-import com.atlassian.jira.rest.client.api.domain.IssueFieldId.SUMMARY_FIELD
+import com.atlassian.jira.rest.client.api.domain.IssueFieldId.*
 import com.atlassian.jira.rest.client.api.domain.input.ComplexIssueInputFieldValue
 import com.atlassian.jira.rest.client.api.domain.input.FieldInput
 import com.atlassian.jira.rest.client.api.domain.input.IssueInput.createWithFields
@@ -26,7 +25,11 @@ import io.ktor.routing.*
 import io.ktor.serialization.*
 import io.ktor.server.engine.*
 import kotlinx.coroutines.FlowPreview
+import kotlinx.serialization.Polymorphic
+import kotlinx.serialization.SealedClassSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.codehaus.jettison.json.JSONObject
 import org.joda.time.DateTime
 import java.util.*
@@ -36,10 +39,23 @@ import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.server.cio.CIO as ServerCIO
 
 @Serializable
-data class Card(val summary: String, val department: String)
+data class Card(val summary: String, val description: String, val department: String, val ctoRepresentative: String, val currentStatus: String)
 
 @Serializable
 data class Payload(val callback: String, val keys: Array<String>)
+
+@Serializable
+sealed class PayloadNew {
+    abstract val callback: String
+
+    @Serializable
+    @SerialName("keys")
+    data class KeysPayload(override val callback: String, val keys: Array<String>) : PayloadNew()
+
+    @Serializable
+    @SerialName("jql")
+    data class JqlPayload(override val callback: String, val jql: String) : PayloadNew()
+}
 
 @Serializable
 data class Effort(val key: String, val status: String, val summary: String, val totalEfforts: Double, val lastMonthEfforts: Double, val typeOfContract: String, val date: String)
@@ -97,7 +113,10 @@ fun main() {
                     }
                 }
             }
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) {
+                json(Json { useArrayPolymorphism = false })
+
+            }
             install(CORS) {
                 method(HttpMethod.Options)
                 anyHost()
@@ -115,7 +134,7 @@ fun main() {
                         post(route) {
                             val possibleValues = (jiraClient.issueClient as MyAsynchronousIssueRestClient).getAllowedValues(jiraClient.projectClient.getProject(env[MILESTONES_JIRA_PROJECT]).get())
                             log.process("Fetching Project Cards") {
-                                projectCards(setOf(env[fields.first], env[fields.second]))
+                                allProjectCards(setOf(env[fields.first], env[fields.second]))
                             }.let { cards ->
                                 val mainField = cards.map {
                                     listOf(
@@ -145,7 +164,7 @@ fun main() {
 
                     post ("/regions") {
                         log.process("Fetching Project Cards") {
-                            projectCards(setOf(env[MILESTONES_JIRA_CUSTOMER_REGION_FIELD]))
+                            allProjectCards(setOf(env[MILESTONES_JIRA_CUSTOMER_REGION_FIELD]))
                         }.let { cards ->
                             val regions = cards.mapNotNull { it.getField(env[MILESTONES_JIRA_CUSTOMER_REGION_FIELD])?.value?.toString() }
                             val map = regions.groupingBy { it }.eachCount()
@@ -166,26 +185,32 @@ fun main() {
                         val issue = jiraClient.issueClient.createIssue(createWithFields(
                             FieldInput(ISSUE_TYPE_FIELD, ComplexIssueInputFieldValue(mapOf("name" to jiraClient.projectClient.getProject(env[MILESTONES_JIRA_PROJECT]).get().issueTypes.first().name))),
                             FieldInput(PROJECT_FIELD, ComplexIssueInputFieldValue(mapOf("key" to env[MILESTONES_JIRA_PROJECT]))),
-                            FieldInput(SUMMARY_FIELD, card.summary)
+                            FieldInput(SUMMARY_FIELD, card.summary),
+                            FieldInput(DESCRIPTION_FIELD, card.description)
                         )).get()
                         jiraClient.issueClient.updateIssue(issue.key, createWithFields(
                             FieldInput(env[MILESTONES_JIRA_TEAM_HEAD_FIELD], ComplexIssueInputFieldValue(mapOf("name" to teamHeads.getValue(card.department)))),
-                            FieldInput(env[MILESTONES_JIRA_DEPARTMENT_FIELD], ComplexIssueInputFieldValue(mapOf("value" to "Production")))
+                            FieldInput(env[MILESTONES_JIRA_CTO_REPRESENTATIVE_FIELD], ComplexIssueInputFieldValue(mapOf("name" to card.ctoRepresentative))),
+                            FieldInput(env[MILESTONES_JIRA_DEPARTMENT_FIELD], ComplexIssueInputFieldValue(mapOf("value" to "Production"))),
+                            FieldInput(env[MILESTONES_JIRA_CURRENT_STATUS_FIELD], card.currentStatus)
                         )).get()
                         call.respondText(issue.key)
                     }
 
                     post("/") {
-                        log.process("Fetching Project Cards") {
-                            projectCards(setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD], env[MILESTONES_JIRA_PREVIOUS_MONTH_EFFORTS_FIELD], env[MILESTONES_JIRA_FIRST_UOW_FIELD], env[MILESTONES_JIRA_TYPE_OF_CONTRACT_FIELD])).associateBy { it.key }
-                        }.let { mapping ->
-                            log.process("Executing callback") {
-                                call.receive<Payload>().let { payload ->
+                        val fields = setOf(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD], env[MILESTONES_JIRA_PREVIOUS_MONTH_EFFORTS_FIELD], env[MILESTONES_JIRA_FIRST_UOW_FIELD], env[MILESTONES_JIRA_TYPE_OF_CONTRACT_FIELD])
+                        call.receive<PayloadNew>().let { payload ->
+                            log.process("Fetching Project Cards") {
+                                when (payload) {
+                                    is PayloadNew.JqlPayload -> projectCards(payload.jql, fields)
+                                    is PayloadNew.KeysPayload -> projectCards("key in (${payload.keys.filter(String::isNotEmpty).joinToString(", ")})", fields)
+                                }.associateBy { it.key }
+                            }.let { mapping ->
+                                log.process("Executing callback") {
                                     HttpClient(ClientCIO) { install(JsonFeature) }.post<Any>(payload.callback) {
                                         contentType(Json)
-                                        body = payload.keys
+                                        body = mapping.keys
                                             .also { log.trace("Got: ${it.joinToString(", ")} projects in request") }
-                                            .sortedBy { it }.filter { it.isNotEmpty() }
                                             .mapNotNull { project ->
                                                 mapping[project]?.let { card ->
                                                     val totalEfforts = ((card.getField(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])?.value ?: 0.0) as Double / 168).roundTo(2)
@@ -197,10 +222,10 @@ fun main() {
                                                     Effort(project, card.status.name, card.summary, totalEfforts, lastMonthEfforts, typeOfContract, date)
                                                 }
                                             }.also { log.trace("Going to send: ${it.map(Effort::summary).joinToString(", ")} to callback") }
+                                        }
                                     }
                                 }
                             }
-                        }
                         call.respond(OK)
                     }
                 }
