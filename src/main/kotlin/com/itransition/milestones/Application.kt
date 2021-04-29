@@ -2,8 +2,6 @@ package com.itransition.milestones
 
 
 
-import com.atlassian.jira.rest.client.api.domain.Issue
-import com.atlassian.jira.rest.client.api.domain.IssueFieldId
 import com.atlassian.jira.rest.client.api.domain.IssueFieldId.*
 import com.atlassian.jira.rest.client.api.domain.input.ComplexIssueInputFieldValue
 import com.atlassian.jira.rest.client.api.domain.input.FieldInput
@@ -25,8 +23,6 @@ import io.ktor.routing.*
 import io.ktor.serialization.*
 import io.ktor.server.engine.*
 import kotlinx.coroutines.FlowPreview
-import kotlinx.serialization.Polymorphic
-import kotlinx.serialization.SealedClassSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json

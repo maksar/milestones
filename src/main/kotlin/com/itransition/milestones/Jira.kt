@@ -150,15 +150,13 @@ internal val jiraClient = AsynchronousJiraRestClientFactoryCustom().createWithBa
 )
 
 val MINIMUM_SET_OF_FIELDS = setOf(
-    arrayOf(
         IssueFieldId.SUMMARY_FIELD,
         IssueFieldId.ISSUE_TYPE_FIELD,
         IssueFieldId.CREATED_FIELD,
         IssueFieldId.UPDATED_FIELD,
         IssueFieldId.PROJECT_FIELD,
         IssueFieldId.STATUS_FIELD,
-    ).map(IssueFieldId::id).plus(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD]).joinToString(separator = ",")
-)
+    ).map(IssueFieldId::id).toSet().plus(env[MILESTONES_JIRA_TOTAL_EFFORTS_FIELD])
 
 fun <T> Flow<T>.retryOnTimeouts() =
     this.flowOn(Dispatchers.IO)
