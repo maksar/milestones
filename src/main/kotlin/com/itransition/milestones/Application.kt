@@ -23,7 +23,7 @@ import io.ktor.routing.*
 import io.ktor.serialization.*
 import io.ktor.server.engine.*
 import kotlinx.coroutines.FlowPreview
-import kotlinx.serialization.SerialName
+    import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.codehaus.jettison.json.JSONObject
@@ -73,6 +73,7 @@ val teamHeads = mapOf(
     team("Salesforce") to "s.korolev",
     team("Brest") to "v.ermolik",
     team("Poland") to "v.krukovsky",
+    team("Internal Automation") to "v.bayandin",
     team("Suboch") to "e.suboch",
     team("Strelchenko") to "k.strelchenko",
     team("Shults") to "p.shults",
