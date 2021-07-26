@@ -91,7 +91,7 @@ val teamHeads = mapOf(
     team("Bogomazov") to "a.bogomazov",
     team("Atroshko") to "g.atroshko",
     team("Adamova") to "n.adamova",
-    team("Shestakov") to "a.shestakov"
+    team("Rybakova") to "y.rybakova"
 )
 
 @FlowPreview
