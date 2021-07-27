@@ -39,7 +39,7 @@ import io.ktor.server.cio.CIO as ServerCIO
 data class Card(val summary: String, val description: String, val department: String, val ctoRepresentative: String, val currentStatus: String)
 
 @Serializable
-data class Payload(val callback: String, val keys: Array<String>)
+data class CardCreated(val projectCardId: String, val departmentHead: String)
 
 @Serializable
 sealed class PayloadNew {
@@ -165,7 +165,8 @@ fun main() {
                             FieldInput(env[MILESTONES_JIRA_DEPARTMENT_FIELD], ComplexIssueInputFieldValue(mapOf("value" to "Production"))),
                             FieldInput(env[MILESTONES_JIRA_CURRENT_STATUS_FIELD], card.currentStatus)
                         )).get()
-                        call.respondText(issue.key)
+
+                        call.respond(CardCreated(issue.key, env[MILESTONES_DEPARTMENTS_MAPPING].getValue(card.department)))
                     }
 
                     post("/") {
