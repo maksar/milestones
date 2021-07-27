@@ -31,6 +31,7 @@ import org.joda.time.DateTime
 import java.util.*
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.system.exitProcess
 import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.server.cio.CIO as ServerCIO
 
@@ -66,33 +67,6 @@ fun Double.roundTo(numFractionDigits: Int): Double =
     10.0.pow(numFractionDigits.toDouble()).let { factor ->
         (this * factor).roundToInt() / factor
     }
-
-fun team(c: String) = "Team $c"
-
-val teamHeads = mapOf(
-    team("Salesforce") to "s.korolev",
-    team("Brest") to "v.ermolik",
-    team("Poland") to "v.krukovsky",
-    team("Internal Automation") to "v.bayandin",
-    team("Suboch") to "e.suboch",
-    team("Strelchenko") to "k.strelchenko",
-    team("Shults") to "p.shults",
-    team("Romanchenko") to "a.romanchenko",
-    team("Nikitin") to "e.nikitin",
-    team("Mazur-Grabovsky") to "d.mazur-grabovsky",
-    team("Mahnach") to "v.mahnach",
-    team("Korzun") to "a.korzun",
-    team("Korolev") to "s.korolev",
-    team("Karpenkov") to "d.karpenkov",
-    team("Kalganov") to "a.kalganov",
-    team("Gomanchuk") to "s.gomanchuk",
-    team("Chakur") to "s.chakur",
-    team("Botko") to "a.botko",
-    team("Bogomazov") to "a.bogomazov",
-    team("Atroshko") to "g.atroshko",
-    team("Adamova") to "n.adamova",
-    team("Rybakova") to "y.rybakova"
-)
 
 @FlowPreview
 fun main() {
@@ -186,7 +160,7 @@ fun main() {
                             FieldInput(DESCRIPTION_FIELD, card.description)
                         )).get()
                         jiraClient.issueClient.updateIssue(issue.key, createWithFields(
-                            FieldInput(env[MILESTONES_JIRA_TEAM_HEAD_FIELD], ComplexIssueInputFieldValue(mapOf("name" to teamHeads.getValue(card.department)))),
+                            FieldInput(env[MILESTONES_JIRA_TEAM_HEAD_FIELD], ComplexIssueInputFieldValue(mapOf("name" to env[MILESTONES_DEPARTMENTS_MAPPING].getValue(card.department)))),
                             FieldInput(env[MILESTONES_JIRA_CTO_REPRESENTATIVE_FIELD], ComplexIssueInputFieldValue(mapOf("name" to card.ctoRepresentative))),
                             FieldInput(env[MILESTONES_JIRA_DEPARTMENT_FIELD], ComplexIssueInputFieldValue(mapOf("value" to "Production"))),
                             FieldInput(env[MILESTONES_JIRA_CURRENT_STATUS_FIELD], card.currentStatus)
